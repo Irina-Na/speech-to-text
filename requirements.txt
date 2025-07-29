@@ -1,0 +1,5 @@
+openai-whisper==20250625
+streamlit==1.47.1
+torch==2.7.1
+
+
