@@ -21,7 +21,7 @@ def transcribe(video_path: str, output_path: str, model_size: str = "small", lan
     language : str, optional
         ISO‑639‑1 code of the language spoken in the audio. When set, Whisper does not
         attempt to detect the language automatically which can improve accuracy.
-        Defaults to "ru" (Russian).
+        Defaults to "ru".
 
     Notes
     -----
@@ -51,8 +51,8 @@ def transcribe(video_path: str, output_path: str, model_size: str = "small", lan
     # Set fp16 to False when running on CPU to avoid unsupported half precision
     use_fp16 = device != "cpu"
     # Load the chosen Whisper model
-    model = whisper.load_model(model_size, device=device, download_root=DEFAULT_MODELS_DIR)  # <-- ключевая правка
-    # Perform transcription. The language hint helps Whisper to lock onto Russian.
+    model = whisper.load_model(model_size, device=device, download_root=DEFAULT_MODELS_DIR)  # key change
+    # Perform transcription. The language hint helps Whisper focus on the selected language.
     result = model.transcribe(video_path, language=language, fp16=use_fp16)
     text = result["text"].strip()
     # Write the transcription to the specified output file using UTF‑8 encoding
@@ -64,8 +64,8 @@ def transcribe(video_path: str, output_path: str, model_size: str = "small", lan
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Transcribe an audio or video file to Russian text using OpenAI's "
-            "open‑source Whisper model."
+            "Transcribe an audio or video file using OpenAI's open‑source "
+            "Whisper model."
         )
     )
     parser.add_argument(
@@ -89,7 +89,7 @@ def main() -> None:
         "-l",
         "--language",
         default="ru",
-        help="Language code of the audio to transcribe (default: ru for Russian).",
+        help="Language code of the audio to transcribe (default: ru).",
     )
     args = parser.parse_args()
     transcribe(args.input, args.output, args.model, args.language)
