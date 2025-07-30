@@ -1,6 +1,6 @@
-# Whisper‑RU Transcriber
+# Whisper Transcriber
 
-A lightweight solution powered by **OpenAI Whisper** that automatically transcribes Russian‑language audio or video.
+A lightweight solution powered by **OpenAI Whisper** that automatically transcribes audio or video in many languages.
 
 * 📝 **CLI script:** `transcribe_video_to_russian.py`
 * 🌐 **Web UI:** Streamlit app `app.py`
@@ -72,17 +72,17 @@ A lightweight solution powered by **OpenAI Whisper** that automatically transcr
 python transcribe_video_to_russian.py path_to_file.mp4 \
        -o transcript.txt \
        -m small \
-       -l ru
+       -l en
 ```
 
 ## Quick start with Docker
 
 ```bash
 # Build the image
-docker build -t whisper-ru-ui .
+docker build -t whisper-ui .
 
 # Run the container
-docker run -p 8501:8501 whisper-ru-ui
+docker run -p 8501:8501 whisper-ui
 # UI available at http://localhost:8501
 ```
 
@@ -113,9 +113,9 @@ Need a different model size? Pass `-m medium` (or another size) to the CLI or pi
 MIT.
 
 
-# Whisper‑RU Transcriber
+# Whisper Transcriber
 
-Простое решение на основе **OpenAI Whisper** для автоматической транскрибации аудио/видео на русском языке.
+Простое решение на основе **OpenAI Whisper** для автоматической транскрибации аудио или видео на разных языках.
 
 - 📝 CLI‑скрипт: `transcribe_video_to_russian.py`
 - 🌐 Web‑интерфейс: Streamlit‑приложение `app.py`
@@ -172,10 +172,10 @@ python transcribe_video_to_russian.py путь_к_файлу.mp4 \
 
 ```bash
 # Cборка образа
-docker build -t whisper-ru-ui .
+docker build -t whisper-ui .
 
 # Запуск контейнера
-docker run -p 8501:8501 whisper-ru-ui
+docker run -p 8501:8501 whisper-ui
 # UI будет доступен на http://localhost:8501
 ```
 
