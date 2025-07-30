@@ -2,6 +2,7 @@ import argparse
 import whisper
 import torch
 
+DEFAULT_MODELS_DIR = '/models'
 
 def transcribe(video_path: str, output_path: str, model_size: str = "small", language: str = "ru") -> None:
     """
@@ -50,7 +51,7 @@ def transcribe(video_path: str, output_path: str, model_size: str = "small", lan
     # Set fp16 to False when running on CPU to avoid unsupported half precision
     use_fp16 = device != "cpu"
     # Load the chosen Whisper model
-    model = whisper.load_model(model_size, device=device, download_root='/models')  # <-- ключевая правка
+    model = whisper.load_model(model_size, device=device, download_root=DEFAULT_MODELS_DIR)  # <-- ключевая правка
     # Perform transcription. The language hint helps Whisper to lock onto Russian.
     result = model.transcribe(video_path, language=language, fp16=use_fp16)
     text = result["text"].strip()
