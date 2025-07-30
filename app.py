@@ -3,6 +3,7 @@ from pathlib import Path
 import shutil
 import zipfile
 import streamlit as st
+import whisper
 
 from transcribe_video_to_russian import transcribe
 
@@ -17,10 +18,37 @@ zip‑архив со всеми транскриптами.
 """
 )
 
-mode = st.radio("Режим работы", ["Single file", "Batch mode"], horizontal=True)
+mode = st.radio(
+    "Режим работы",
+    ["Single file", "Batch mode"],
+    horizontal=True,
+    key="mode_radio",
+)
 
 model_size = st.selectbox("Размер модели", ["tiny", "base", "small", "medium", "large"], index=2)
-language = st.text_input("ISO‑код языка", "ru")
+
+# build language options from Whisper
+whisper_langs = whisper.tokenizer.LANGUAGES
+top_langs = [
+    ("английский", "en"),
+    ("украинский", "uk"),
+    ("русский", "ru"),
+    ("language autodetection", "auto"),
+]
+other_langs = sorted(
+    [(name, code) for code, name in whisper_langs.items() if code not in {"en", "uk", "ru"}],
+    key=lambda x: x[0],
+)
+all_langs = top_langs + other_langs
+
+lang_choice = st.selectbox(
+    "Выберите язык",
+    options=all_langs,
+    format_func=lambda x: x[0].capitalize() if x[1] == "auto" else f"{x[0].capitalize()} ({x[1]})",
+    index=2,
+    key="language_select",
+)
+language = None if lang_choice[1] == "auto" else lang_choice[1]
 
 if mode == "Single file":
     up_file = st.file_uploader("Загрузите файл", type=["mp4", "mp3", "wav", "m4a"], accept_multiple_files=False)
