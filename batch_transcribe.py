@@ -59,6 +59,10 @@ def batch_transcribe(
                 default=language or "ru",
             )
             out_txt = output_dir / f"{media_path.stem}.txt"
+            if out_txt.exists():
+                tqdm.write(f"[skip] {out_txt.name} already exists, skipping.")
+                progress.update(1)
+                continue
             tqdm.write(f"[->] {media_path.name} (lang={file_language}) -> {out_txt.name}")
             transcribe(
                 str(media_path),
