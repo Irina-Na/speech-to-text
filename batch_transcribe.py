@@ -52,17 +52,30 @@ def batch_transcribe(
 
     with tqdm(total=len(media_files), desc="Transcribing files", unit="file") as progress:
         for media_path in media_files:
+            file_bar = tqdm(
+                total=3,
+                desc=f"{media_path.name}",
+                unit="step",
+                position=1,
+                leave=False,
+            )
             # Choose language for this particular file based on its name.
             # Example: "en_interview1.mp4" -> "en", "ru_sozvon.wav" -> "ru".
             file_language = _detect_language_from_name(
                 media_path.stem,
                 default=language or "ru",
             )
+            file_bar.set_postfix(lang=file_language)
+            file_bar.update(1)  # language resolved
             out_txt = output_dir / f"{media_path.stem}.txt"
             if out_txt.exists():
                 tqdm.write(f"[skip] {out_txt.name} already exists, skipping.")
+                file_bar.set_postfix(status="skip (exists)")
+                file_bar.update(2)  # finish remaining steps
+                file_bar.close()
                 progress.update(1)
                 continue
+            file_bar.set_description(f"{media_path.name} (transcribing)")
             tqdm.write(f"[->] {media_path.name} (lang={file_language}) -> {out_txt.name}")
             transcribe(
                 str(media_path),
@@ -70,6 +83,10 @@ def batch_transcribe(
                 model_size=model_size,
                 language=file_language,
             )
+            file_bar.update(1)  # transcription done
+            file_bar.set_description(f"{media_path.name} (done)")
+            file_bar.update(1)  # wrap up/save
+            file_bar.close()
             progress.update(1)
             tqdm.write(f"    OK done ({progress.n}/{progress.total})")
 
