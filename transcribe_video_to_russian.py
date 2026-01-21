@@ -1,8 +1,46 @@
 import argparse
+import glob
+import os
+import shutil
+import sys
+
+try:
+    import torch
+except OSError as e:
+    if "DLL" in str(e) or "dll" in str(e).lower() or "WinError" in str(e):
+        print("=" * 60)
+        print("ОШИБКА: Не удается загрузить библиотеки PyTorch (DLL)")
+        print("=" * 60)
+        print(f"\nДетали: {e}")
+        print("\nРЕШЕНИЕ:")
+        print("1. Установите Visual C++ Redistributables:")
+        print("   https://aka.ms/vs/17/release/vc_redist.x64.exe")
+        print("\n2. Переустановите PyTorch:")
+        print("   pip uninstall torch torchvision torchaudio")
+        print("   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126")
+        sys.exit(1)
+    else:
+        raise
+
 import whisper
-import torch
 
 DEFAULT_MODELS_DIR = '/models'
+
+
+def _ensure_ffmpeg_on_path() -> None:
+    """On Windows, if ffmpeg is not in PATH, try to add WinGet Gyan.FFmpeg bin."""
+    if os.name != "nt":
+        return
+    if shutil.which("ffmpeg"):
+        return
+    base = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WinGet", "Packages")
+    if not os.path.isdir(base):
+        return
+    for d in glob.glob(os.path.join(base, "Gyan.FFmpeg*", "*", "bin")):
+        if os.path.isfile(os.path.join(d, "ffmpeg.exe")):
+            os.environ["PATH"] = d + os.pathsep + os.environ.get("PATH", "")
+            return
+
 
 def transcribe(video_path: str, output_path: str, model_size: str = "small", language: str = "ru") -> None:
     """
@@ -44,10 +82,27 @@ def transcribe(video_path: str, output_path: str, model_size: str = "small", lan
     --------
     >>> transcribe("meeting.mp4", "meeting.txt")
     """
+    _ensure_ffmpeg_on_path()
 
-
-    # Determine computation device
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # Determine computation device with diagnostic information
+    cuda_available = torch.cuda.is_available()
+    if cuda_available:
+        device = "cuda"
+        gpu_name = torch.cuda.get_device_name(0)
+        gpu_count = torch.cuda.device_count()
+        print(f"✓ CUDA доступна: {gpu_count} GPU обнаружено")
+        print(f"✓ Используется GPU: {gpu_name}")
+    else:
+        device = "cpu"
+        print("⚠ CUDA недоступна, используется CPU")
+        print("  Возможные причины:")
+        print("  1. PyTorch установлен без поддержки CUDA (CPU-only версия)")
+        print("  2. Драйверы CUDA не установлены или устарели")
+        print("  3. Несовместимость версий CUDA")
+        print("\n  Для установки PyTorch с поддержкой CUDA:")
+        print("  https://pytorch.org/get-started/locally/")
+        print("  Пример: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121")
+    
     # Set fp16 to False when running on CPU to avoid unsupported half precision
     use_fp16 = device != "cpu"
     # Load the chosen Whisper model
