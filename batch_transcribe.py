@@ -1,7 +1,7 @@
 from pathlib import Path
 import argparse
 from tqdm.auto import tqdm
-from transcribe_video_to_russian import transcribe
+from transcribe_video import transcribe
 
 SUPPORTED_EXTS = {".mp4", ".m4a", ".mp3", ".wav"}
 

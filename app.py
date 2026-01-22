@@ -5,7 +5,7 @@ import zipfile
 import streamlit as st
 import whisper
 
-from transcribe_video_to_russian import transcribe
+from transcribe_video import transcribe
 
 st.set_page_config(page_title="Whisper Transcriber", page_icon="📝", layout="centered")
 st.title("📝 Whisper Transcriber")
