@@ -49,6 +49,22 @@ python transcribe_video.py path_to_file.mp4 \
 ```
 
 
+### Автоопределение языка по имени файла
+
+При пакетной обработке язык определяется автоматически по имени файла (без расширения):
+
+- Если имя файла начинается с `en` (регистронезависимо) → используется английский язык
+- Если имя файла начинается с `ru` → используется русский язык
+- Иначе используется язык, указанный в параметре `-l` (по умолчанию `ru`)
+
+Примеры:
+- `en_interview1.mp4` → язык будет `en`
+- `ru_sozvon.wav` → язык будет `ru`
+- `myfile.mp3` → язык будет `ru` (по умолчанию)
+
+
+
+
 ### Таймкоды (отдельный файл)
 
 Добавьте флаг `--timestamps` и выберите формат:
@@ -82,8 +98,7 @@ python transcribe_video.py path_to_file.mp4 \
 python batch_transcribe.py \
   --input-dir video \
   --output-dir outputs \
-  -m medium \
-  -l ru
+  -m large \
 ```
 
 Если нужны таймкоды для каждого файла, добавьте `--timestamps` и выберите формат:
@@ -92,8 +107,7 @@ python batch_transcribe.py \
 python batch_transcribe.py \
   --input-dir video \
   --output-dir outputs \
-  -m medium \
-  -l ru \
+  -m large \
   --timestamps txt 
 ```
 
