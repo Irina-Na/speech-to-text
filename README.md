@@ -118,9 +118,33 @@ python batch_transcribe.py \
 
 ```bash
 docker build -t whisper-ui .
-docker run -p 8501:8501 whisper-ui
+```
+
+### Запуск контейнера (Streamlit UI)
+
+PowerShell (Windows):
+
+```powershell
+docker run --rm -p 8501:8501 `
+  -v ${PWD}\models:/models `
+  -v ${PWD}\outputs:/app/outputs `
+  whisper-ui
 # UI доступен на http://localhost:8501
 ```
+
+Linux/macOS:
+
+```bash
+docker run --rm -p 8501:8501 \
+  -v $(pwd)/models:/models \
+  -v $(pwd)/outputs:/app/outputs \
+  whisper-ui
+# UI доступен на http://localhost:8501
+```
+
+> Пояснения:
+> - `/models` — кэш моделей Whisper (иначе скачиваются внутри контейнера и пропадут при его удалении)
+> - `/app/outputs` — готовые тексты и ZIP-архивы
 
 ## Структура проекта
 

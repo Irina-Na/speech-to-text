@@ -27,7 +27,7 @@ except OSError as e:
 
 import whisper
 
-DEFAULT_MODELS_DIR = '/models'
+DEFAULT_MODELS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
 _TS_RE = re.compile(r"\[(\d{2}:\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}\.\d{3})\]")
 
 
@@ -257,7 +257,8 @@ def transcribe(
     # Set fp16 to False when running on CPU to avoid unsupported half precision
     use_fp16 = device != "cpu"
     # Load the chosen Whisper model
-    model = whisper.load_model(model_size, device=device, download_root=DEFAULT_MODELS_DIR)  # key change
+    os.makedirs(DEFAULT_MODELS_DIR, exist_ok=True)
+    model = whisper.load_model(model_size, device=device, download_root=DEFAULT_MODELS_DIR)
     # Perform transcription. The language hint helps Whisper focus on the selected language.
     duration_seconds = progress_total
     if duration_seconds is None and progress_callback is not None:
