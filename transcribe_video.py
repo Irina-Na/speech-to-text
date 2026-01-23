@@ -27,6 +27,54 @@ import whisper
 DEFAULT_MODELS_DIR = '/models'
 
 
+def _format_timestamp(seconds: float, for_vtt: bool = False) -> str:
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    millis = int(round((seconds - int(seconds)) * 1000))
+    sep = "." if for_vtt else ","
+    return f"{hours:02}:{minutes:02}:{secs:02}{sep}{millis:03}"
+
+
+def _build_timestamp_lines(segments, fmt: str) -> str:
+    if fmt == "tsv":
+        lines = []
+        for s in segments:
+            lines.append(f"{s['start']:.3f}\t{s['end']:.3f}\t{s['text'].strip()}")
+        return "\n".join(lines) + "\n"
+    if fmt == "vtt":
+        lines = ["WEBVTT", ""]
+        for s in segments:
+            start = _format_timestamp(s["start"], for_vtt=True)
+            end = _format_timestamp(s["end"], for_vtt=True)
+            lines.append(f"{start} --> {end}")
+            lines.append(s["text"].strip())
+            lines.append("")
+        return "\n".join(lines).rstrip() + "\n"
+    if fmt == "srt":
+        lines = []
+        for idx, s in enumerate(segments, start=1):
+            start = _format_timestamp(s["start"])
+            end = _format_timestamp(s["end"])
+            lines.append(str(idx))
+            lines.append(f"{start} --> {end}")
+            lines.append(s["text"].strip())
+            lines.append("")
+        return "\n".join(lines).rstrip() + "\n"
+    lines = []
+    for s in segments:
+        start = _format_timestamp(s["start"], for_vtt=True)
+        end = _format_timestamp(s["end"], for_vtt=True)
+        lines.append(f"[{start} - {end}] {s['text'].strip()}")
+    return "\n".join(lines) + "\n"
+
+
+def _timestamps_output_path(output_path: str, fmt: str) -> str:
+    base, _ = os.path.splitext(output_path)
+    ext = "txt" if fmt == "txt" else fmt
+    return f"{base}.{ext}"
+
+
 def _ensure_ffmpeg_on_path() -> None:
     """On Windows, if ffmpeg is not in PATH, try to add WinGet Gyan.FFmpeg bin."""
     if os.name != "nt":
@@ -42,7 +90,13 @@ def _ensure_ffmpeg_on_path() -> None:
             return
 
 
-def transcribe(video_path: str, output_path: str, model_size: str = "small", language: str = "ru") -> None:
+def transcribe(
+    video_path: str,
+    output_path: str,
+    model_size: str = "small",
+    language: str = "ru",
+    timestamps_format: str = "none",
+) -> None:
     """
     Transcribe an audio or video file to text using OpenAI's Whisper model.
 
@@ -114,6 +168,13 @@ def transcribe(video_path: str, output_path: str, model_size: str = "small", lan
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(text + "\n")
     print(f"Saved transcription to {output_path}")
+    if timestamps_format != "none":
+        segments = result.get("segments", [])
+        timestamps_text = _build_timestamp_lines(segments, timestamps_format)
+        timestamps_path = _timestamps_output_path(output_path, timestamps_format)
+        with open(timestamps_path, "w", encoding="utf-8") as f:
+            f.write(timestamps_text)
+        print(f"Saved timestamps to {timestamps_path}")
 
 
 def main() -> None:
@@ -146,8 +207,14 @@ def main() -> None:
         default="ru",
         help="Language code of the audio to transcribe (default: ru).",
     )
+    parser.add_argument(
+        "--timestamps",
+        choices=["none", "txt", "srt", "vtt", "tsv"],
+        default="none",
+        help="Save timestamps to a separate file (none, txt, srt, vtt, tsv).",
+    )
     args = parser.parse_args()
-    transcribe(args.input, args.output, args.model, args.language)
+    transcribe(args.input, args.output, args.model, args.language, args.timestamps)
 
 
 if __name__ == "__main__":
