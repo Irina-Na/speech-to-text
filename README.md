@@ -48,17 +48,6 @@ python transcribe_video.py path_to_file.mp4 \
   -l ru
 ```
 
-### Пакетная обработка (batch_transcribe.py)
-
-Скрипт берёт файлы из папки `video/` и складывает результаты в `outputs/`.
-
-```bash
-python batch_transcribe.py \
-  --input-dir video \
-  --output-dir outputs \
-  -m medium \
-  -l ru
-```
 
 ### Таймкоды (отдельный файл)
 
@@ -67,7 +56,7 @@ python batch_transcribe.py \
 ```bash
 python transcribe_video.py path_to_file.mp4 \
   -o transcript.txt \
-  --timestamps srt
+  --timestamps srt --language en
 ```
 
 Доступные форматы:
@@ -84,6 +73,32 @@ python transcribe_video.py path_to_file.mp4 \
 [00:00:01.230 - 00:00:04.560] Привет, это тест.
 [00:00:04.560 - 00:00:08.900] Следующая фраза.
 ```
+
+### Пакетная обработка (batch_transcribe.py)
+
+Скрипт берёт файлы из папки `video/` и складывает результаты в `outputs/`.
+
+```bash
+python batch_transcribe.py \
+  --input-dir video \
+  --output-dir outputs \
+  -m medium \
+  -l ru
+```
+
+Если нужны таймкоды для каждого файла, добавьте `--timestamps` и выберите формат:
+
+```bash
+python batch_transcribe.py \
+  --input-dir video \
+  --output-dir outputs \
+  -m medium \
+  -l ru \
+  --timestamps txt 
+```
+
+Пример результата: `outputs/meeting.txt` + `outputs/meeting.srt`.
+
 
 ## Docker
 

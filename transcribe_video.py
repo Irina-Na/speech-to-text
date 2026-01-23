@@ -167,6 +167,23 @@ class _ProgressStdout:
         self._progress_callback(seconds)
 
 
+def make_progress_printer(total_seconds: Optional[float], label: Optional[str] = None) -> Optional[Callable[[float], None]]:
+    if total_seconds is None or total_seconds <= 0:
+        return None
+
+    prefix = f"{label} " if label else ""
+
+    def _progress_printer(current_seconds: float) -> None:
+        percent = min(100.0, (current_seconds / total_seconds) * 100.0)
+        print(
+            f"\r{prefix}Progress: {percent:6.2f}% ({current_seconds:,.1f}s / {total_seconds:,.1f}s)",
+            end="",
+            flush=True,
+        )
+
+    return _progress_printer
+
+
 def transcribe(
     video_path: str,
     output_path: str,
@@ -310,8 +327,41 @@ def main() -> None:
         default="none",
         help="Save timestamps to a separate file (none, txt, srt, vtt, tsv).",
     )
+    progress_group = parser.add_mutually_exclusive_group()
+    progress_group.add_argument(
+        "--progress",
+        dest="progress",
+        action="store_true",
+        help="Show progress in the terminal (default).",
+    )
+    progress_group.add_argument(
+        "--no-progress",
+        dest="progress",
+        action="store_false",
+        help="Disable progress output.",
+    )
+    parser.set_defaults(progress=True)
     args = parser.parse_args()
-    transcribe(args.input, args.output, args.model, args.language, args.timestamps)
+    progress_total = None
+    progress_callback = None
+    if args.progress:
+        progress_total = _probe_duration_seconds(args.input)
+        if progress_total is None:
+            print("⚠ Не удалось определить длительность через ffprobe; прогресс отключен.")
+        else:
+            print(f"Длительность: {progress_total:,.1f}s")
+            progress_callback = make_progress_printer(progress_total)
+    transcribe(
+        args.input,
+        args.output,
+        args.model,
+        args.language,
+        args.timestamps,
+        progress_callback=progress_callback,
+        progress_total=progress_total,
+    )
+    if args.progress and progress_total:
+        print()
 
 
 if __name__ == "__main__":
