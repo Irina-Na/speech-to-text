@@ -2,7 +2,10 @@ import argparse
 import glob
 import os
 import shutil
+import subprocess
 import sys
+import re
+from typing import Callable, Optional
 
 try:
     import torch
@@ -25,6 +28,7 @@ except OSError as e:
 import whisper
 
 DEFAULT_MODELS_DIR = '/models'
+_TS_RE = re.compile(r"\[(\d{2}:\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}\.\d{3})\]")
 
 
 def _format_timestamp(seconds: float, for_vtt: bool = False) -> str:
@@ -90,12 +94,88 @@ def _ensure_ffmpeg_on_path() -> None:
             return
 
 
+def _parse_timestamp_seconds(value: str) -> float:
+    hours, minutes, rest = value.split(":")
+    seconds, millis = rest.split(".")
+    return (int(hours) * 3600) + (int(minutes) * 60) + int(seconds) + (int(millis) / 1000.0)
+
+
+def _probe_duration_seconds(media_path: str) -> Optional[float]:
+    _ensure_ffmpeg_on_path()
+    try:
+        completed = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                media_path,
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (subprocess.SubprocessError, FileNotFoundError):
+        return None
+    value = (completed.stdout or "").strip()
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
+class _ProgressStdout:
+    def __init__(
+        self,
+        original,
+        total_seconds: float,
+        progress_callback: Callable[[float], None],
+    ) -> None:
+        self._original = original
+        self._total_seconds = total_seconds
+        self._progress_callback = progress_callback
+        self._buffer = ""
+        self._last_seconds = 0.0
+
+    def write(self, text: str) -> int:
+        self._buffer += text
+        while "\n" in self._buffer:
+            line, self._buffer = self._buffer.split("\n", 1)
+            self._handle_line(line)
+        return self._original.write(text)
+
+    def flush(self) -> None:
+        if self._buffer:
+            self._handle_line(self._buffer)
+            self._buffer = ""
+        self._original.flush()
+
+    def _handle_line(self, line: str) -> None:
+        match = _TS_RE.search(line)
+        if not match:
+            return
+        end_ts = match.group(2)
+        seconds = _parse_timestamp_seconds(end_ts)
+        if seconds <= self._last_seconds:
+            return
+        self._last_seconds = seconds
+        if self._total_seconds > 0:
+            seconds = min(seconds, self._total_seconds)
+        self._progress_callback(seconds)
+
+
 def transcribe(
     video_path: str,
     output_path: str,
     model_size: str = "small",
     language: str = "ru",
     timestamps_format: str = "none",
+    progress_callback: Optional[Callable[[float], None]] = None,
+    progress_total: Optional[float] = None,
+    verbose: Optional[bool] = None,
 ) -> None:
     """
     Transcribe an audio or video file to text using OpenAI's Whisper model.
@@ -162,7 +242,24 @@ def transcribe(
     # Load the chosen Whisper model
     model = whisper.load_model(model_size, device=device, download_root=DEFAULT_MODELS_DIR)  # key change
     # Perform transcription. The language hint helps Whisper focus on the selected language.
-    result = model.transcribe(video_path, language=language, fp16=use_fp16)
+    duration_seconds = progress_total
+    if duration_seconds is None and progress_callback is not None:
+        duration_seconds = _probe_duration_seconds(video_path)
+    needs_progress = progress_callback is not None and duration_seconds is not None
+    kwargs = {"language": language, "fp16": use_fp16}
+    if verbose is not None:
+        kwargs["verbose"] = verbose
+    elif needs_progress:
+        kwargs["verbose"] = True
+    original_stdout = sys.stdout
+    if needs_progress:
+        sys.stdout = _ProgressStdout(original_stdout, duration_seconds, progress_callback)
+    try:
+        result = model.transcribe(video_path, **kwargs)
+    finally:
+        if sys.stdout is not original_stdout:
+            sys.stdout.flush()
+            sys.stdout = original_stdout
     text = result["text"].strip()
     # Write the transcription to the specified output file using UTF‑8 encoding
     with open(output_path, "w", encoding="utf-8") as f:

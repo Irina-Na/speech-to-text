@@ -1,7 +1,7 @@
 from pathlib import Path
 import argparse
 from tqdm.auto import tqdm
-from transcribe_video import transcribe
+from transcribe_video import transcribe, _probe_duration_seconds
 
 SUPPORTED_EXTS = {".mp4", ".m4a", ".mp3", ".wav"}
 
@@ -52,13 +52,23 @@ def batch_transcribe(
 
     with tqdm(total=len(media_files), desc="Transcribing files", unit="file") as progress:
         for media_path in media_files:
-            file_bar = tqdm(
-                total=3,
-                desc=f"{media_path.name}",
-                unit="step",
-                position=1,
-                leave=False,
-            )
+            duration_seconds = _probe_duration_seconds(str(media_path))
+            if duration_seconds:
+                file_bar = tqdm(
+                    total=duration_seconds,
+                    desc=f"{media_path.name}",
+                    unit="s",
+                    position=1,
+                    leave=False,
+                )
+            else:
+                file_bar = tqdm(
+                    total=3,
+                    desc=f"{media_path.name}",
+                    unit="step",
+                    position=1,
+                    leave=False,
+                )
             # Choose language for this particular file based on its name.
             # Example: "en_interview1.mp4" -> "en", "ru_sozvon.wav" -> "ru".
             file_language = _detect_language_from_name(
@@ -66,26 +76,37 @@ def batch_transcribe(
                 default=language or "ru",
             )
             file_bar.set_postfix(lang=file_language)
-            file_bar.update(1)  # language resolved
             out_txt = output_dir / f"{media_path.stem}.txt"
             if out_txt.exists():
                 tqdm.write(f"[skip] {out_txt.name} already exists, skipping.")
                 file_bar.set_postfix(status="skip (exists)")
-                file_bar.update(2)  # finish remaining steps
+                if duration_seconds:
+                    file_bar.update(max(0.0, duration_seconds - file_bar.n))
+                else:
+                    file_bar.update(3)
                 file_bar.close()
                 progress.update(1)
                 continue
             file_bar.set_description(f"{media_path.name} (transcribing)")
             tqdm.write(f"[->] {media_path.name} (lang={file_language}) -> {out_txt.name}")
+            def _on_progress(seconds_done: float) -> None:
+                if not duration_seconds:
+                    return
+                if seconds_done > file_bar.n:
+                    file_bar.update(seconds_done - file_bar.n)
             transcribe(
                 str(media_path),
                 str(out_txt),
                 model_size=model_size,
                 language=file_language,
+                progress_callback=_on_progress,
+                progress_total=duration_seconds,
             )
-            file_bar.update(1)  # transcription done
+            if duration_seconds:
+                file_bar.update(max(0.0, duration_seconds - file_bar.n))
+            else:
+                file_bar.update(2)  # transcription done + wrap up
             file_bar.set_description(f"{media_path.name} (done)")
-            file_bar.update(1)  # wrap up/save
             file_bar.close()
             progress.update(1)
             tqdm.write(f"    OK done ({progress.n}/{progress.total})")
